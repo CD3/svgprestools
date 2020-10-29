@@ -192,8 +192,6 @@ def svgmontage(output, input):
 @click.option("--output", "-o", default=None, help="Output filename.")
 @click.argument("input", type=click.Path(exists=True), nargs=1)
 def write2sozi(output, input):
-    if not input.endswith(".svg"):
-      input = input + ".svg"
     input = pathlib.Path(input)
 
     if output is None:
