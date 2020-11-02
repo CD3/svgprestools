@@ -205,6 +205,46 @@ def write2sozi(output, input):
     iimg = etree.parse(str(input))
     svg = iimg.getroot()
 
+    # replace nested svg tags with g tags
+    width = 0
+    height = 0
+    for page in svg.xpath("//svg:svg[@class='write-page']",namespaces=NAMESPACES):
+      page.tag = "g"
+      x = page.get("x",0)
+      y = page.get("y",0)
+      page.set("transform",f"translate({x},{y})")
+
+      height += int(page.get("height").strip("px"))
+      width = max( int(page.get("width").strip("px")), width )
+
+    for doc in svg.xpath("/svg:svg[@id='write-document']",namespaces=NAMESPACES):
+      doc.set("width",str(width))
+      doc.set("height",str(height))
+
+
+    output.write_bytes(
+        etree.tostring(iimg, xml_declaration=True, pretty_print=True, encoding="utf-8")
+    )
+
+
+@click.command()
+@click.option("--output", "-o", default=None, help="Output filename.")
+@click.argument("input", type=click.Path(exists=True), nargs=1)
+def extractWriteInk(output, input):
+    input = pathlib.Path(input)
+
+    if output is None:
+      output = input.stem + "-ink.svg"
+
+    if not output.endswith(".svg"):
+      output = output + ".svg"
+
+    output = pathlib.Path(output)
+
+
+    iimg = etree.parse(str(input))
+    svg = iimg.getroot()
+
     oimg = etree.Element(
         "svg",
         nsmap={

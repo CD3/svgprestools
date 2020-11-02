@@ -16,6 +16,7 @@ setup(
     txt2svg=svgprestools.scripts:txt2svg
     svgmontage=svgprestools.scripts:svgmontage
     write2sozi=svgprestools.scripts:write2sozi
+    extract-write-ink=svgprestools.scripts:extractWriteInk
     update-sozi-presentation=svgprestools.scripts:updateSoziPresentation
     ''',
 )
