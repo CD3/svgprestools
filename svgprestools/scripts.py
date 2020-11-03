@@ -10,38 +10,16 @@ import re
 import copy
 from json import loads,dumps
 
-
-def tryint(s):
-    try:
-        return int(s)
-    except ValueError:
-        return s
+from svgprestools.utils import *
+from svgprestools.WriteDoc import WriteDoc
 
 
-def split_filename_into_numerical_parts(filename):
-    return [tryint(c) for c in re.split("([0-9]+)", str(filename))]
 
 
-def sort_numbered_filenames(files):
-    files.sort(key=split_filename_into_numerical_parts)
-    return files
-
-
-NAMESPACES={'svg':'http://www.w3.org/2000/svg',
-            'xml':'http://www.w3.org/XML/1998/namespace',
-            'xlink':'http://www.w3.org/1999/xlink',
-            'ink':'http://www.inkscape.org/namespaces/inkscape'}
-
-XMLNS = "{"+NAMESPACES['xml']+"}"
-INKNS =  "{"+NAMESPACES['ink']+"}"
-XLINKNS =  "{"+NAMESPACES['xlink']+"}"
-SVGNS =  "{"+NAMESPACES['svg']+"}"
-
-
-@click.command()
+@click.command(help="Create an SVG image of one or more text files.")
 @click.option("--output", "-o", default="txt2svg-out.svg", help="Output filename.")
 @click.argument("input", type=click.Path(exists=True), nargs=-1)
-def main(output, input):
+def txt2svg(output, input):
 
     font_size = 12
     line_hieght = 15
@@ -103,7 +81,7 @@ def main(output, input):
     )
 
 
-@click.command()
+@click.command(help="Create a montage of SVG images into one SVG image.")
 @click.option("--output", "-o", default=None, help="Output filename.")
 @click.argument("input", type=click.Path(exists=True), nargs=1)
 def svgmontage(output, input):
@@ -188,7 +166,7 @@ def svgmontage(output, input):
         etree.tostring(oimg, xml_declaration=True, pretty_print=True, encoding="utf-8")
     )
 
-@click.command()
+@click.command(help="Modify a Write (StylusLabs) SVG image so that it can be used by Sozi.")
 @click.option("--output", "-o", default=None, help="Output filename.")
 @click.argument("input", type=click.Path(exists=True), nargs=1)
 def write2sozi(output, input):
@@ -227,7 +205,7 @@ def write2sozi(output, input):
     )
 
 
-@click.command()
+@click.command(help="Extract the ink and images from a Write document.")
 @click.option("--output", "-o", default=None, help="Output filename.")
 @click.argument("input", type=click.Path(exists=True), nargs=1)
 def extractWriteInk(output, input):
@@ -283,7 +261,7 @@ def extractWriteInk(output, input):
 
 
 
-@click.command()
+@click.command(help="Update the SVG image or JSON settings in a Sozi HTML presentation.")
 @click.argument("input", type=click.Path(exists=True), nargs=1)
 @click.option("--output", "-o", default=None, help="Output filename.")
 @click.option("--image", "-i", default=None, type=click.Path(exists=True))
@@ -330,6 +308,7 @@ def updateSoziPresentation(input, output, image, json):
 
 
 
+    
     output.write_bytes(html.tostring(doc,encoding="utf-8"))
 
 
@@ -341,7 +320,104 @@ def updateSoziPresentation(input, output, image, json):
 
 
 
+@click.command(help="Concatenate multiple Write SVG images into a single SVG image.")
+@click.argument("input", type=click.Path(exists=True), nargs=-1)
+@click.option("--output", "-o", type=click.Path(), help="Output filename.")
+@click.option("--overwrite/--no-overwrite", "-x/-n", help="Overwrite output file if it exists.")
+@click.option("--horizontal/--vertical", "-h/-v", help="Concatinate documents horizontally or vertically.")
+def writeCat(input, output,overwrite,horizontal):
 
-#     output.write_bytes(
-#         etree.tostring(oimg, xml_declaration=True, pretty_print=True, encoding="utf-8")
-#     )
+  if len(input) < 1:
+    return 0
+
+  doc = WriteDoc(input[0])
+  H = doc.get_document_height()
+  W = doc.get_document_width()
+  for file in input[1:]: 
+    doc2 = WriteDoc(str(file))
+    if horizontal:
+      doc2.shift_horizontal(W)
+    else:
+      doc2.shift_vertical(H)
+    for page in doc2.get_pages():
+      doc.root.append(page)
+    H = doc.get_document_height()
+    W = doc.get_document_width()
+
+  H = doc.get_document_height()
+  W = doc.get_document_width()
+
+  for style in doc.root.xpath("/svg:svg/svg:defs/svg:style",namespaces=NAMESPACES):
+    style.text = "#write-document, #write-doc-background { width: "+str(W)+"px;  height: "+str(H)+"px; }"
+
+
+
+  if output:
+    output = pathlib.Path(output)
+    if overwrite or not output.exists():
+      output.write_bytes(etree.tostring(doc.root,encoding="utf-8"))
+    else:
+      print(f"Error: output file {str(output)} exists. Use -x to overwrite.")
+  else:
+    print(etree.tostring(doc.root).decode("utf-8"))
+
+
+    
+
+
+
+
+
+
+
+@click.command(help="Change the background used in a Write SVG image.")
+@click.argument("input", type=click.Path(exists=True), nargs=1)
+@click.option("--output", "-o", type=click.Path(), help="Output filename.")
+@click.option("--template", "-t", type=click.Path(exists=True), help="Write template that contains the background to use.")
+@click.option("--overwrite/--no-overwrite", "-x/-n", help="Overwrite output file if it exists.")
+def writeChangeBackground(input, output, template, overwrite):
+
+  if len(input) < 1:
+    return 0
+
+  rulings = []
+  if template:
+    tmpl = WriteDoc(template)
+    rulings = list( tmpl.get_rulings() )
+
+  file = input
+  # for file in input:
+  doc = WriteDoc(file)
+  i = 0
+  for ruling in doc.get_rulings():
+    if len(rulings) > 0:
+      ruling.getparent().replace(ruling,copy.deepcopy(rulings[i]))
+      i += 1
+      i = i % len(rulings)
+    else:
+      ruling.getparent().remove(ruling)
+
+
+
+
+
+  if output:
+    output = pathlib.Path(output)
+    if overwrite or not output.exists():
+      output.write_bytes(etree.tostring(doc.root,encoding="utf-8"))
+    else:
+      print(f"Error: output file {str(output)} exists. Use -x to overwrite.")
+  else:
+    print(etree.tostring(doc.root).decode("utf-8"))
+
+
+    
+
+
+
+
+
+
+
+
+

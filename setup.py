@@ -18,5 +18,7 @@ setup(
     write2sozi=svgprestools.scripts:write2sozi
     extract-write-ink=svgprestools.scripts:extractWriteInk
     update-sozi-presentation=svgprestools.scripts:updateSoziPresentation
+    write-cat=svgprestools.scripts:writeCat
+    write-change-background=svgprestools.scripts:writeChangeBackground
     ''',
 )
