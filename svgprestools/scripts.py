@@ -180,13 +180,11 @@ def write2sozi(output, input):
     output = pathlib.Path(output)
 
 
-    iimg = etree.parse(str(input))
-    svg = iimg.getroot()
-
+    doc = WriteDoc(str(input))
     # replace nested svg tags with g tags
     width = 0
     height = 0
-    for page in svg.xpath("//svg:svg[@class='write-page']",namespaces=NAMESPACES):
+    for page in doc.get_pages():
       page.tag = "g"
       x = page.get("x",0)
       y = page.get("y",0)
@@ -195,13 +193,13 @@ def write2sozi(output, input):
       height += int(page.get("height").strip("px"))
       width = max( int(page.get("width").strip("px")), width )
 
-    for doc in svg.xpath("/svg:svg[@id='write-document']",namespaces=NAMESPACES):
-      doc.set("width",str(width))
-      doc.set("height",str(height))
+    for d in doc.root.xpath("/svg:svg[@id='write-document']",namespaces=NAMESPACES):
+      d.set("width",str(width))
+      d.set("height",str(height))
 
 
     output.write_bytes(
-        etree.tostring(iimg, xml_declaration=True, pretty_print=True, encoding="utf-8")
+        etree.tostring(doc.root, xml_declaration=True, pretty_print=True, encoding="utf-8")
     )
 
 
