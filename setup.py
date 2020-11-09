@@ -7,7 +7,7 @@ setup(
     license="MIT",
     version="0.1",
     description='A collection of tools for generating svg images for presentations.',
-    url='https://github.com/CD3/txt2svg',
+    url='https://github.com/CD3/svgprestools',
     author='C.D. Clark III',
     packages=find_packages(),
     install_requires=['click','lxml'],
